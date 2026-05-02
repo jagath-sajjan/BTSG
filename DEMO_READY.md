@@ -1,9 +1,90 @@
 # 🚀 BTSG Demo Ready Guide
 
+## ⚠️ Scanner Installation (REQUIRED FIRST)
+
+**IMPORTANT**: These security scanning tools must be installed BEFORE running `btsg scan`.
+
+### 1️⃣ Quick Install (All Tools)
+```bash
+pip install bandit pip-audit detect-secrets
+```
+
+### 2️⃣ Verify Installation
+```bash
+bandit --version
+pip-audit --version
+detect-secrets --version
+```
+
+**Expected output**: Each command should display a version number (e.g., `bandit 1.7.5`).
+
+### 3️⃣ Individual Installation (if needed)
+If you prefer to install tools separately or if the quick install fails:
+
+- **Bandit** (Python code security scanner):
+  ```bash
+  pip install bandit
+  ```
+
+- **pip-audit** (Dependency vulnerability scanner):
+  ```bash
+  pip install pip-audit
+  ```
+
+- **detect-secrets** (Secret detection tool):
+  ```bash
+  pip install detect-secrets
+  ```
+
+### 4️⃣ Troubleshooting
+
+**Problem: `pip: command not found`**
+- **Solution**: Install Python 3.x first from [python.org](https://www.python.org/downloads/)
+- **Alternative**: Try `pip3` instead of `pip`:
+  ```bash
+  pip3 install bandit pip-audit detect-secrets
+  ```
+
+**Problem: `Permission denied` or access errors**
+- **Solution 1** (Recommended): Install for current user only:
+  ```bash
+  pip install --user bandit pip-audit detect-secrets
+  ```
+- **Solution 2**: Use sudo (Linux/macOS):
+  ```bash
+  sudo pip install bandit pip-audit detect-secrets
+  ```
+
+**Problem: Tools installed but not found**
+- **Solution**: Add Python's bin directory to PATH:
+  ```bash
+  # macOS/Linux
+  export PATH="$HOME/.local/bin:$PATH"
+  
+  # Or add to ~/.bashrc or ~/.zshrc for permanent fix
+  echo 'export PATH="$HOME/.local/bin:$PATH"' >> ~/.bashrc
+  ```
+
+**Problem: Version conflicts**
+- **Solution**: Use a virtual environment:
+  ```bash
+  python3 -m venv btsg-env
+  source btsg-env/bin/activate  # On Windows: btsg-env\Scripts\activate
+  pip install bandit pip-audit detect-secrets
+  ```
+
+---
+
 ## Quick Start (2 minutes)
 
 ### Prerequisites
-1. **API Key Setup** (Choose one):
+1. **Scanner Tools** (See "Scanner Installation" section above):
+   ```bash
+   # Verify scanners are installed
+   bandit --version && pip-audit --version && detect-secrets --version
+   ```
+
+2. **API Key Setup** (Choose one):
    ```bash
    # Option 1: OpenAI (Recommended)
    export OPENAI_API_KEY="your-key-here"
@@ -12,12 +93,8 @@
    export HACKCLUB_API_KEY="your-key-here"
    ```
 
-2. **Install Dependencies**:
+3. **Build BTSG**:
    ```bash
-   # Python tools (if not installed)
-   pip install bandit pip-audit detect-secrets
-   
-   # Build BTSG
    go build -o btsg
    ```
 
