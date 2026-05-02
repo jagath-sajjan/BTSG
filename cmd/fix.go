@@ -1,7 +1,6 @@
 package cmd
 
 import (
-	"btsg/internal/fixer"
 	"fmt"
 
 	"github.com/spf13/cobra"
@@ -42,24 +41,10 @@ Examples:
 			fmt.Printf("Dry run: %v\n", fixDryRun)
 		}
 
-		// Initialize fixer
-		f := fixer.New(fixer.Config{
-			Path:        path,
-			Interactive: fixInteractive,
-			DryRun:      fixDryRun,
-			FixAll:      fixAll,
-			VulnID:      fixVulnID,
-			Verbose:     verbose,
-		})
-
-		// Run fixer
-		results, err := f.Fix()
-		if err != nil {
-			exitWithError(err)
-		}
-
-		// Display results
-		displayFixResults(results)
+		// TODO: Integrate new fixer implementation
+		fmt.Println("⚠️  Fix command is under development")
+		fmt.Println("The new fixer with AI-powered fixes and rollback is being integrated.")
+		fmt.Println("Please check back soon!")
 	},
 }
 
@@ -72,48 +57,9 @@ func init() {
 	fixCmd.Flags().StringVar(&fixVulnID, "vuln-id", "", "Fix specific vulnerability by ID")
 }
 
-func displayFixResults(results *fixer.FixResults) {
-	fmt.Printf("\n=== BTSG Fix Results ===\n\n")
-
-	if results.DryRun {
-		fmt.Println("🔍 DRY RUN MODE - No files were modified\n")
-	}
-
-	fmt.Printf("Vulnerabilities found: %d\n", results.TotalVulns)
-	fmt.Printf("Fixes applied: %d\n", results.FixesApplied)
-	fmt.Printf("Fixes skipped: %d\n", results.FixesSkipped)
-	fmt.Printf("Fixes failed: %d\n\n", results.FixesFailed)
-
-	if len(results.FixedVulns) > 0 {
-		fmt.Println("✅ Fixed vulnerabilities:")
-		for _, fix := range results.FixedVulns {
-			fmt.Printf("  • %s in %s\n", fix.VulnID, fix.File)
-			if verbose {
-				fmt.Printf("    Change: %s\n", fix.Description)
-			}
-		}
-		fmt.Println()
-	}
-
-	if len(results.SkippedVulns) > 0 {
-		fmt.Println("⏭️  Skipped vulnerabilities:")
-		for _, skip := range results.SkippedVulns {
-			fmt.Printf("  • %s: %s\n", skip.VulnID, skip.Reason)
-		}
-		fmt.Println()
-	}
-
-	if len(results.FailedVulns) > 0 {
-		fmt.Println("❌ Failed to fix:")
-		for _, fail := range results.FailedVulns {
-			fmt.Printf("  • %s: %s\n", fail.VulnID, fail.Error)
-		}
-		fmt.Println()
-	}
-
-	if results.BackupPath != "" {
-		fmt.Printf("💾 Backup created at: %s\n", results.BackupPath)
-	}
+func displayFixResults() {
+	// TODO: Implement with new fixer
+	fmt.Println("Fix results will be displayed here")
 }
 
 // Made with Bob
