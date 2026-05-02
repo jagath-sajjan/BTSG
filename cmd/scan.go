@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"btsg/internal/scanner"
+	"btsg/pkg/results"
 	"context"
 	"fmt"
 	"time"
@@ -61,13 +62,20 @@ Examples:
 
 		// Run scan
 		ctx := context.Background()
-		results, err := s.Scan(ctx)
+		scanResults, err := s.Scan(ctx)
 		if err != nil {
 			exitWithError(err)
 		}
 
+		// Save results to .btsg/results.json
+		if err := results.Save(scanResults, scanPath); err != nil {
+			fmt.Printf("⚠️  Warning: Failed to save results: %v\n", err)
+		} else {
+			fmt.Printf("✓ Results saved to %s\n\n", results.GetResultsPath())
+		}
+
 		// Display results
-		if err := displayScanResults(results); err != nil {
+		if err := displayScanResults(scanResults); err != nil {
 			exitWithError(err)
 		}
 	},

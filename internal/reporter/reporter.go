@@ -1,8 +1,11 @@
 package reporter
 
 import (
+	"btsg/internal/scanner"
+	"btsg/pkg/results"
 	"encoding/json"
 	"fmt"
+	"os"
 	"time"
 )
 
@@ -48,8 +51,8 @@ type ReportSummary struct {
 
 // ReportData holds the complete report data
 type ReportData struct {
-	Metadata       ReportMetadata    `json:"metadata"`
-	Summary        ReportSummary     `json:"summary"`
+	Metadata        ReportMetadata        `json:"metadata"`
+	Summary         ReportSummary         `json:"summary"`
 	Vulnerabilities []VulnerabilityReport `json:"vulnerabilities"`
 }
 
@@ -84,12 +87,13 @@ func (r *Reporter) Generate() (*ReportResult, error) {
 		fmt.Printf("Generating %s report...\n", r.config.Format)
 	}
 
-	// TODO: Load scan results from input file or run new scan
-	// For now, use sample data
-	reportData := r.getSampleReportData()
+	// Load scan results from .btsg/results.json
+	reportData, err := r.loadReportData()
+	if err != nil {
+		return nil, fmt.Errorf("failed to load scan results: %w", err)
+	}
 
 	var content string
-	var err error
 
 	switch r.config.Format {
 	case "json":
@@ -119,9 +123,15 @@ func (r *Reporter) Generate() (*ReportResult, error) {
 
 	// Save to file if output path is specified
 	if r.config.Output != "" {
-		// TODO: Implement file writing
+		if err := os.WriteFile(r.config.Output, []byte(content), 0644); err != nil {
+			return nil, fmt.Errorf("failed to write report file: %w", err)
+		}
 		result.OutputPath = r.config.Output
-		result.FileSize = "15.2 KB"
+
+		// Get file size
+		if info, err := os.Stat(r.config.Output); err == nil {
+			result.FileSize = fmt.Sprintf("%.2f KB", float64(info.Size())/1024)
+		}
 	}
 
 	return result, nil
@@ -237,36 +247,75 @@ func (r *Reporter) generateSARIF(data *ReportData) (string, error) {
 	return "SARIF generation not yet implemented", nil
 }
 
-// getSampleReportData returns sample report data for demonstration
-func (r *Reporter) getSampleReportData() *ReportData {
+// loadReportData loads scan results and converts to report format
+func (r *Reporter) loadReportData() (*ReportData, error) {
+	// Load results from .btsg/results.json
+	resultsFile, err := results.Load()
+	if err != nil {
+		return nil, err
+	}
+
+	// Calculate summary
+	summary := ReportSummary{
+		TotalVulns: len(resultsFile.Findings),
+	}
+
+	for _, finding := range resultsFile.Findings {
+		switch finding.Severity {
+		case "CRITICAL":
+			summary.Critical++
+		case "HIGH":
+			summary.High++
+		case "MEDIUM":
+			summary.Medium++
+		case "LOW":
+			summary.Low++
+		case "INFO":
+			summary.Info++
+		}
+	}
+
+	// Convert findings to vulnerability reports
+	vulnerabilities := make([]VulnerabilityReport, 0, len(resultsFile.Findings))
+	for _, finding := range resultsFile.Findings {
+		vulnerabilities = append(vulnerabilities, VulnerabilityReport{
+			ID:          finding.ID,
+			Title:       finding.Description,
+			Description: finding.Description,
+			Severity:    finding.Severity,
+			Type:        finding.Tool,
+			File:        finding.File,
+			Line:        finding.Line,
+			CWE:         finding.CWE,
+			Remediation: getRemediationForFinding(finding),
+		})
+	}
+
 	return &ReportData{
 		Metadata: ReportMetadata{
-			Tool:        "BTSG",
-			Version:     "1.0.0",
-			ScanPath:    ".",
+			Tool:        resultsFile.Metadata.Scanner,
+			Version:     resultsFile.Metadata.Version,
+			ScanPath:    resultsFile.Metadata.Path,
 			GeneratedAt: time.Now(),
-			Duration:    "2.5s",
+			Duration:    resultsFile.Metadata.Duration,
 		},
-		Summary: ReportSummary{
-			TotalVulns: 5,
-			Critical:   1,
-			High:       2,
-			Medium:     1,
-			Low:        1,
-			Info:       0,
-		},
-		Vulnerabilities: []VulnerabilityReport{
-			{
-				ID:          "BTSG-001",
-				Title:       "Hardcoded API Key",
-				Description: "API key found in source code",
-				Severity:    "CRITICAL",
-				Type:        "secrets",
-				File:        "config/api.go",
-				Line:        15,
-				Remediation: "Move to environment variables",
-			},
-		},
+		Summary:         summary,
+		Vulnerabilities: vulnerabilities,
+	}, nil
+}
+
+// getRemediationForFinding provides basic remediation advice
+func getRemediationForFinding(finding *scanner.Finding) string {
+	// Basic remediation suggestions based on tool/type
+	switch finding.Tool {
+	case "detect-secrets":
+		return "Remove hardcoded secrets and use environment variables or a secrets management system"
+	case "bandit":
+		return "Review and fix the security issue identified by Bandit"
+	case "pip-audit":
+		return "Update the vulnerable dependency to a patched version"
+	default:
+		return "Review and remediate the security finding"
 	}
 }
 

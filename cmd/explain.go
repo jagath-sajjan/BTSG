@@ -2,7 +2,6 @@ package cmd
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"os"
 	"strings"
@@ -10,6 +9,7 @@ import (
 
 	"btsg/internal/explainer"
 	"btsg/internal/scanner"
+	"btsg/pkg/results"
 
 	"github.com/joho/godotenv"
 	"github.com/spf13/cobra"
@@ -301,34 +301,17 @@ func explainFromLastScan() {
 
 // loadFindingByID loads a specific finding by ID from scan results
 func loadFindingByID(id string) (*scanner.Finding, error) {
-	findings, err := loadAllFindings()
-	if err != nil {
-		return nil, err
-	}
-
-	for _, finding := range findings {
-		if finding.ID == id {
-			return finding, nil
-		}
-	}
-
-	return nil, fmt.Errorf("vulnerability %s not found in scan results", id)
+	return results.FindByID(id)
 }
 
 // loadAllFindings loads all findings from the last scan
 func loadAllFindings() ([]*scanner.Finding, error) {
-	// Try to load from scan-results.json
-	data, err := os.ReadFile("scan-results.json")
+	resultsFile, err := results.Load()
 	if err != nil {
-		return nil, fmt.Errorf("no scan results found. Run 'btsg scan' first")
+		return nil, err
 	}
 
-	var results scanner.ScanResults
-	if err := json.Unmarshal(data, &results); err != nil {
-		return nil, fmt.Errorf("failed to parse scan results: %w", err)
-	}
-
-	return results.Findings, nil
+	return resultsFile.Findings, nil
 }
 
 // detectLanguage detects the programming language from file extension
