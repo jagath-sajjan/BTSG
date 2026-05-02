@@ -128,16 +128,14 @@ func displayScanResults(results *scanner.ScanResults) error {
 	}
 	fmt.Println()
 
-	// Display detailed findings
+	// Display detailed findings with IDs
 	fmt.Printf("Detailed findings:\n\n")
-	for i, finding := range results.Findings {
-		fmt.Printf("%d. [%s] %s\n", i+1, finding.Severity, finding.Tool)
-		fmt.Printf("   File: %s", finding.File)
+	for _, finding := range results.Findings {
+		fmt.Printf("[%s] [%s] %s in %s", finding.ID, finding.Severity, finding.Description, finding.File)
 		if finding.Line > 0 {
 			fmt.Printf(":%d", finding.Line)
 		}
 		fmt.Println()
-		fmt.Printf("   Description: %s\n", finding.Description)
 		if finding.CWE != "" {
 			fmt.Printf("   CWE: %s\n", finding.CWE)
 		}
@@ -150,7 +148,43 @@ func displayScanResults(results *scanner.ScanResults) error {
 		fmt.Println()
 	}
 
+	// Display actionable next steps
+	displayNextSteps(results.Findings)
+
 	return nil
+}
+
+// displayNextSteps shows actionable next steps after scan
+func displayNextSteps(findings []*scanner.Finding) {
+	if len(findings) == 0 {
+		return
+	}
+
+	// Count high severity issues
+	highCount := 0
+	criticalCount := 0
+	for _, f := range findings {
+		if f.Severity == "HIGH" {
+			highCount++
+		} else if f.Severity == "CRITICAL" {
+			criticalCount++
+		}
+	}
+
+	fmt.Println("─────────────────────────────────────────────────────────────")
+
+	if criticalCount > 0 {
+		fmt.Printf("🚨 %d CRITICAL severity issues detected\n", criticalCount)
+	}
+	if highCount > 0 {
+		fmt.Printf("⚠️  %d HIGH severity issues detected\n", highCount)
+	}
+
+	fmt.Println("\n👉 Next steps:")
+	fmt.Println("   btsg explain")
+	fmt.Println("   btsg fix --dry-run")
+	fmt.Println("   btsg report --format markdown")
+	fmt.Println()
 }
 
 // Made with Bob

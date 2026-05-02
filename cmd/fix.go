@@ -29,14 +29,13 @@ var fixCmd = &cobra.Command{
   • Fix specific vulnerabilities by ID
 
 Examples:
-  btsg fix --id BTSG-001 --dry-run
-  btsg fix --id BTSG-001
-  btsg fix --all --dry-run`,
+  btsg fix --dry-run
+  btsg fix
+  btsg fix --id BTSG-001 --dry-run`,
 	Run: func(cmd *cobra.Command, args []string) {
+		// AUTO MODE: If no ID provided and not using --all, default to fixing all vulnerabilities
 		if fixVulnID == "" && !fixAll {
-			fmt.Println("Error: Please specify --id or --all")
-			cmd.Usage()
-			return
+			fixAll = true
 		}
 
 		if verbose {
@@ -96,7 +95,15 @@ func fixAllVulnerabilities() {
 		exitWithError(err)
 	}
 
-	fmt.Printf("\n🔧 Fixing %d vulnerabilities...\n\n", len(resultsFile.Findings))
+	// Count fixable vulnerabilities
+	fixableCount := 0
+	for _, finding := range resultsFile.Findings {
+		if generateFix(finding) != nil {
+			fixableCount++
+		}
+	}
+
+	fmt.Printf("\n🔍 Found %d fixable vulnerabilities...\n\n", fixableCount)
 
 	fixed := 0
 	skipped := 0

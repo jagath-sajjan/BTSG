@@ -51,15 +51,15 @@ Examples:
 			vulnID = explainVulnID
 		}
 
-		if explainFromScan {
-			// Explain vulnerabilities from last scan
+		// AUTO MODE: If no ID provided and not using --from-scan, default to explaining all findings
+		if vulnID == "" && !explainFromScan {
 			explainFromLastScan()
 			return
 		}
 
-		if vulnID == "" {
-			fmt.Println("Error: Please provide a vulnerability ID or use --from-scan")
-			cmd.Usage()
+		if explainFromScan {
+			// Explain vulnerabilities from last scan
+			explainFromLastScan()
 			return
 		}
 
@@ -287,7 +287,7 @@ func explainFromLastScan() {
 		return
 	}
 
-	fmt.Printf("Found %d vulnerabilities. Generating explanations...\n\n", len(findings))
+	fmt.Printf("🔍 Explaining %d vulnerabilities...\n\n", len(findings))
 
 	for i, finding := range findings {
 		fmt.Printf("[%d/%d] Explaining %s...\n", i+1, len(findings), finding.ID)
