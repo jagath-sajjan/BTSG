@@ -2,7 +2,9 @@ package cmd
 
 import (
 	"btsg/internal/scanner"
+	"context"
 	"fmt"
+	"time"
 
 	"github.com/spf13/cobra"
 )
@@ -10,7 +12,7 @@ import (
 var (
 	scanPath      string
 	scanRecursive bool
-	scanTypes     []string
+	scanTimeout   time.Duration
 )
 
 // scanCmd represents the scan command
@@ -27,7 +29,7 @@ Examples:
   btsg scan .
   btsg scan /path/to/project
   btsg scan . --recursive
-  btsg scan . --types secrets,dependencies`,
+  btsg scan . --timeout 10m`,
 	Args: cobra.MaximumNArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
 		// Default to current directory if no path provided
@@ -40,19 +42,26 @@ Examples:
 		if verbose {
 			fmt.Printf("Scanning path: %s\n", scanPath)
 			fmt.Printf("Recursive: %v\n", scanRecursive)
-			fmt.Printf("Scan types: %v\n", scanTypes)
+			fmt.Printf("Timeout: %v\n", scanTimeout)
 		}
 
 		// Initialize scanner
-		s := scanner.New(scanner.Config{
+		s := scanner.New(&scanner.ScanConfig{
 			Path:      scanPath,
 			Recursive: scanRecursive,
-			Types:     scanTypes,
 			Verbose:   verbose,
+			Timeout:   scanTimeout,
 		})
 
+		// List available scanners
+		if verbose {
+			scanners := s.ListAvailableScanners()
+			fmt.Printf("Available scanners: %v\n\n", scanners)
+		}
+
 		// Run scan
-		results, err := s.Scan()
+		ctx := context.Background()
+		results, err := s.Scan(ctx)
 		if err != nil {
 			exitWithError(err)
 		}
@@ -68,30 +77,69 @@ func init() {
 	rootCmd.AddCommand(scanCmd)
 
 	scanCmd.Flags().BoolVarP(&scanRecursive, "recursive", "r", true, "Scan directories recursively")
-	scanCmd.Flags().StringSliceVarP(&scanTypes, "types", "t", []string{"all"}, "Vulnerability types to scan (secrets,dependencies,code,config,all)")
+	scanCmd.Flags().DurationVar(&scanTimeout, "timeout", 5*time.Minute, "Timeout for each scanner")
 }
 
 func displayScanResults(results *scanner.ScanResults) error {
 	fmt.Printf("\n=== BTSG Security Scan Results ===\n\n")
-	fmt.Printf("Scanned: %s\n", results.Path)
-	fmt.Printf("Files scanned: %d\n", results.FilesScanned)
-	fmt.Printf("Duration: %s\n\n", results.Duration)
+	fmt.Printf("Duration: %s\n", results.Duration)
+	fmt.Printf("Total findings: %d\n\n", results.TotalScanned)
 
-	if len(results.Vulnerabilities) == 0 {
+	// Display errors if any
+	if len(results.Errors) > 0 {
+		fmt.Printf("⚠️  Errors encountered:\n")
+		for _, err := range results.Errors {
+			fmt.Printf("   • %s\n", err)
+		}
+		fmt.Println()
+	}
+
+	if len(results.Findings) == 0 {
 		fmt.Println("✓ No vulnerabilities found!")
 		return nil
 	}
 
-	fmt.Printf("Found %d vulnerabilities:\n\n", len(results.Vulnerabilities))
+	// Sort findings by severity
+	scanner.SortFindingsBySeverity(results.Findings)
 
-	for i, vuln := range results.Vulnerabilities {
-		fmt.Printf("%d. [%s] %s\n", i+1, vuln.Severity, vuln.Title)
-		fmt.Printf("   File: %s:%d\n", vuln.File, vuln.Line)
-		fmt.Printf("   Type: %s\n", vuln.Type)
-		if vuln.CVE != "" {
-			fmt.Printf("   CVE: %s\n", vuln.CVE)
+	// Display findings grouped by severity
+	severityCounts := scanner.CountBySeverity(results.Findings)
+	fmt.Printf("Findings by severity:\n")
+	for _, sev := range []string{"CRITICAL", "HIGH", "MEDIUM", "LOW", "INFO"} {
+		if count, ok := severityCounts[sev]; ok && count > 0 {
+			fmt.Printf("  %s: %d\n", sev, count)
 		}
-		fmt.Printf("   Description: %s\n\n", vuln.Description)
+	}
+	fmt.Println()
+
+	// Display findings by tool
+	toolCounts := scanner.CountByTool(results.Findings)
+	fmt.Printf("Findings by tool:\n")
+	for tool, count := range toolCounts {
+		fmt.Printf("  %s: %d\n", tool, count)
+	}
+	fmt.Println()
+
+	// Display detailed findings
+	fmt.Printf("Detailed findings:\n\n")
+	for i, finding := range results.Findings {
+		fmt.Printf("%d. [%s] %s\n", i+1, finding.Severity, finding.Tool)
+		fmt.Printf("   File: %s", finding.File)
+		if finding.Line > 0 {
+			fmt.Printf(":%d", finding.Line)
+		}
+		fmt.Println()
+		fmt.Printf("   Description: %s\n", finding.Description)
+		if finding.CWE != "" {
+			fmt.Printf("   CWE: %s\n", finding.CWE)
+		}
+		if finding.Confidence != "" {
+			fmt.Printf("   Confidence: %s\n", finding.Confidence)
+		}
+		if finding.Code != "" && verbose {
+			fmt.Printf("   Code:\n%s\n", finding.Code)
+		}
+		fmt.Println()
 	}
 
 	return nil
